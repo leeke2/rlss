@@ -216,6 +216,7 @@ class GraphTransformerEncoder(Module):
         batch_size, n_nodes, _ = nodes.shape
         nodes = nodes.flatten(start_dim=0, end_dim=1)
         edges = edges.flatten(start_dim=0, end_dim=1)
+        pos_enc = pos_enc.flatten(start_dim=0, end_dim=1)
 
         self._batch = torch.arange(batch_size).repeat_interleave(n_nodes).to(nodes.device)
 

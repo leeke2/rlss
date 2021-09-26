@@ -311,10 +311,14 @@ class StopSkipEnv(gym.Env):
 
         node_features = list(map(list, zip(full_forward, full_backward, exp_forward, exp_backward)))
 
-        return (torch.Tensor(node_features).unsqueeze(0),
-                torch.Tensor(edge_features).unsqueeze(0),
-                self._edge_indices.unsqueeze(0),
-                torch.Tensor(pos_enc))
+        return (np.expand_dims(np.array(node_features, dtype=np.float32), axis=0),
+                np.expand_dims(np.array(edge_features, dtype=np.float32), axis=0),
+                np.expand_dims(np.array(pos_enc, dtype=np.float32), axis=0))
+
+        # return (torch.Tensor(node_features).unsqueeze(0),
+        #         torch.Tensor(edge_features).unsqueeze(0),
+        #         self._edge_indices.unsqueeze(0),
+        #         torch.Tensor(pos_enc).unsqueeze(0))
 
     def _lap_pos_enc(self, alignment):
         A = np.zeros((self.n_nodes, self.n_nodes))
