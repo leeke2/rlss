@@ -116,7 +116,7 @@ class ExplorerProcess(torch.multiprocessing.Process): # pylint: disable=missing-
             # action, _, _ = self.policy.get_action(aug_state)
 
             action = self.env.action_space.sample()
-            next_state, _, reward, done = self.env.step(action.item())
+            next_state, _, reward, done = self.env.step(action)
 
             self.transitions.append((*state, action, reward, done, *next_state))
             state = next_state
