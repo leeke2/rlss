@@ -18,7 +18,7 @@ from torch.utils.data import IterableDataset, DataLoader
 from torch.multiprocessing import Queue
 import tqdm
 
-CHUNK_SIZE = 100
+CHUNK_SIZE = 10
 
 class ReplayBuffer: # pylint: disable=missing-class-docstring
     def __init__(self, dtypes, shapes, buffer_size: int = 1_000): # pylint: disable=missing-function-docstring
@@ -106,17 +106,16 @@ class ExplorerProcess(torch.multiprocessing.Process): # pylint: disable=missing-
 
         state = self.env._obs()
         while not self.stop:
-            if len(self.transitions) >= CHUNK_SIZE * 2:
+            if len(self.transitions) >= CHUNK_SIZE * 20:
                 continue
 
-            aug_state = (torch.Tensor(state[0]),
-                     torch.Tensor(state[1]),
-                     self.env._edge_indices.repeat(1, 1, 1),
-                     torch.Tensor(state[2]))
-            # state = tuple(item.to(self.policy.device) for item in state)
-            action, _, _ = self.policy.get_action(aug_state)
+            # aug_state = (torch.Tensor(state[0]),
+            #          torch.Tensor(state[1]),
+            #          self.env._edge_indices.repeat(1, 1, 1),
+            #          torch.Tensor(state[2]))
+            # action, _, _ = self.policy.get_action(aug_state)
 
-            # action = self.env.action_space.sample()
+            action = self.env.action_space.sample()
             next_state, _, reward, done = self.env.step(action.item())
 
             self.transitions.append((*state, action, reward, done, *next_state))
