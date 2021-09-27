@@ -279,7 +279,7 @@ def train_dataloader(buffer: ReplayBuffer, max_ep_steps: int,
                      batch_size: int = 64, num_workers: int = 4) -> DataLoader:
     """"a"""
     dataset = RLDataset(buffer, max_ep_steps * batch_size // max(num_workers, 1))
-    dataloader = DataLoader(dataset=dataset, batch_size=batch_size, num_workers=num_workers)
+    dataloader = DataLoader(dataset=dataset, batch_size=batch_size, num_workers=num_workers, pin_memory=True)
 
     return dataloader
 
@@ -336,8 +336,8 @@ if __name__ == "__main__":
     am = ArgsManager()
     kwargs = am.parse()
 
-    num_workers = 2
-    buffer_size = 1_000
+    num_workers = kwargs['num_workers']
+    buffer_size = 1_000_000
     env_create_fn = lambda: gym.make('StopSkip-v1')
     # explorer = Explorer(env_create_fn, buffer_size=100_000, num_workers=2)
 
@@ -401,7 +401,7 @@ if __name__ == "__main__":
     #     if done:
     #         state = env.reset()
 
-    dataloader = train_dataloader(buffer, 200, 128, num_workers=2)
+    dataloader = train_dataloader(buffer, 200, 128, num_workers=num_workers)
     env_dim = state_action_dims(env)
     policy = create_pnet(*env_dim, env.pos_enc_dim, **kwargs)
     critic = create_qnet(*env_dim, env.pos_enc_dim, **kwargs)

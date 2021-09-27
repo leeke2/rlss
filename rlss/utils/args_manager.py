@@ -18,6 +18,7 @@ class ArgsManager:
         self.add('--seed', default=9112, type=int)
         self.add('--n_heads', default=4, type=int)
         self.add('--n_encoder_layers', default=6, type=int)
+        self.add('--num_workers', default=2, type=int)
 
         self.add('--max_steps_per_episode', default=200, type=int)
         self.add('--random_sampling_steps', default=20_000, type=int)
