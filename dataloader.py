@@ -357,7 +357,7 @@ if __name__ == "__main__":
 
     dtypes = [item.dtype.type for item in transition]
     shapes = [item.shape for item in transition]
-    buffer = ReplayBuffer(dtypes, shapes)
+    buffer = ReplayBuffer(dtypes, shapes, buffer_size=buffer_size)
 
     # buffers = [ReplayBuffer(100) for _ in range(4)]
     # buffer = ReplayBuffer(100_000)
