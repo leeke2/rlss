@@ -337,7 +337,7 @@ if __name__ == "__main__":
     kwargs = am.parse()
 
     num_workers = kwargs['num_workers']
-    buffer_size = 1_000_000
+    buffer_size = 1_000
     env_create_fn = lambda: gym.make('StopSkip-v1')
     # explorer = Explorer(env_create_fn, buffer_size=100_000, num_workers=2)
 
