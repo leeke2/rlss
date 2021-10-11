@@ -12,13 +12,24 @@ class ReplayMemory: # pylint: disable=missing-class-docstring
 
         self.status_shm, self.ready = create_shared_memory_array(shape=(buffer_size, 1), dtype=np.bool)
         self.shms, self.buffer = create_shared_memory_array(shape=shapes, dtype=dtypes, initialize=True)
+        
         self.buffer_len_shm = SharedMemory(create=True, size=np.dtype(np.uint32).itemsize)
         self.buffer_len = np.ndarray((1, ), buffer=self.buffer_len_shm.buf, dtype=np.uint32)
+
+        self.sps_shm = SharedMemory(create=True, size=np.dtype(np.float32).itemsize)
+        self.sps = np.ndarray((1, ), buffer=self.sps_shm.buf, dtype=np.float32)
 
         self.buffer_size = buffer_size
 
     def __len__(self):
         return self.buffer_len[0]
+
+    def sps(self):
+        return self.sps[0]
+
+    @property
+    def recreate_sps_fn(self):
+        return lambda: (self.sps_shm, np.ndarray((1, ), buffer=self.sps_shm.buf, dtype=np.float32))
 
     @property
     def recreate_buffer_len_fn(self):

@@ -11,11 +11,12 @@ from rlss.nets import BasePolicyNet
 from .memory import ReplayMemory
 import os
 import signal
+import time
 
 CHUNK_SIZE = 10
 
 class DispatcherProcess(Process):  # pylint: disable=missing-class-docstring, too-few-public-methods
-    def __init__(self, in_queues, out_queues, buffer_size, recreate_buffer_len_fn):
+    def __init__(self, in_queues, out_queues, buffer_size, recreate_buffer_len_fn, recreate_sps_fn):
         super().__init__()
 
         self.in_queues = in_queues
@@ -23,8 +24,14 @@ class DispatcherProcess(Process):  # pylint: disable=missing-class-docstring, to
 
         self.buffer_size = buffer_size
         self.buffer_len_shm, self.buffer_len = recreate_buffer_len_fn()
+        self.sps_shm, self.sps = recreate_sps_fn()
+
+        self.time_start = None
 
     def run(self):  # pylint: disable=missing-function-docstring
+        self.time_start = time.time()
+        n_samples = 0
+
         busy = [False for _ in self.in_queues]
         buffer_pos = 0
 
@@ -44,11 +51,20 @@ class DispatcherProcess(Process):  # pylint: disable=missing-class-docstring, to
                 if out is None:
                     break
 
+                n_samples += CHUNK_SIZE
                 busy[worker_idx] = False
                 if self.buffer_len < self.buffer_size:
                     self.buffer_len += min(CHUNK_SIZE, self.buffer_len - self.buffer_size)
 
+                cur_time = time.time()
+                if cur_time - self.time_start > 60:
+                    self.sps *= 0
+                    self.sps += n_samples / (cur_time - self.time_start)
+
+                    self.time_start = time.time()
+
         self.buffer_len_shm.close()
+        self.sps_shm.close()
 
 class ExplorerProcess(Process): # pylint: disable=missing-class-docstring, too-many-instance-attributes, too-few-public-methods
     def __init__(
@@ -179,7 +195,8 @@ class Explorer:  # pylint: disable=missing-class-docstring
             self.instruction_queues,
             self.out_queues,
             buffer_size,
-            self.memory.recreate_buffer_len_fn
+            self.memory.recreate_buffer_len_fn,
+            self.memory.recreate_sps_fn
         )
         self.dispatcher.start()
 
