@@ -191,22 +191,30 @@ class DSACAgent(BaseAgent):
         for _ in self._logger.ep_counter(n_episodes):
             self.state = self.process_state(self.env.reset())
 
+            dataloader_iter = iter(dataloader)
             progress_bar = tqdm.tqdm(
-                zip(
-                    self._logger.step_counter(self.max_steps_per_episode),
-                    dataloader
-                ),
+                self._logger.step_counter(self.max_steps_per_episode), 
                 total=self.max_steps_per_episode,
                 ascii=True
             )
 
-            for idx_batch, batch in progress_bar:
+            for idx_batch in progress_bar:
                 progress_bar.set_postfix(sps=f'{explorer.memory.sps:.1f}', refresh=False)
+                batch = next(dataloader_iter)
+
                 self._update(self.process_batch(batch))
 
                 done = self._gather_experience()
-
                 if done:
                     self._logger.episode_done()
+
+            # for idx_batch, batch in progress_bar:
+            #     progress_bar.set_postfix(sps=f'{explorer.memory.sps:.1f}', refresh=False)
+            #     self._update(self.process_batch(batch))
+
+            #     done = self._gather_experience()
+
+            #     if done:
+            #         self._logger.episode_done()
 
                     
