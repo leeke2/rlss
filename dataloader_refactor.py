@@ -90,7 +90,7 @@ if __name__ == "__main__":
             print(f'Current replay memory size: {len(explorer.memory)}')
             time.sleep(1)
 
-        progress_bar = tqdm.tqdm(enumerate(dataloader), total=200)
+        progress_bar = tqdm.tqdm(enumerate(dataloader), total=200, ascii=True)
         for idx_batch, batch in progress_bar:
         # for idx_batch, batch in enumerate(dataloader):
             # print(idx_batch, len(buffer))
@@ -105,6 +105,8 @@ if __name__ == "__main__":
 
             a_loss = agent._calc_alpha_loss(*batch)
             agent.temp.backward_with_loss(a_loss)
+
+        explorer.join()
     except KeyboardInterrupt:
         print('Exiting...')
         explorer.join()

@@ -48,6 +48,8 @@ class DispatcherProcess(Process):  # pylint: disable=missing-class-docstring, to
                 if self.buffer_len < self.buffer_size:
                     self.buffer_len += min(CHUNK_SIZE, self.buffer_len - self.buffer_size)
 
+        self.buffer_len_shm.close()
+
 class ExplorerProcess(Process): # pylint: disable=missing-class-docstring, too-many-instance-attributes, too-few-public-methods
     def __init__(
         self,
