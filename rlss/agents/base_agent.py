@@ -134,11 +134,11 @@ class BaseAgent:
         """Summary
         """
         # Update trigger
-        self._logger.register_callback(
-            CT.Step.End,
-            lambda _: self._update(),
-            interval=self.update_interval,
-            offset=self.steps_before_updating)
+        # self._logger.register_callback(
+        #     CT.Step.End,
+        #     lambda _: self._update(),
+        #     interval=self.update_interval,
+        #     offset=self.steps_before_updating)
 
         # Save trigger
         self._logger.register_callback(
@@ -184,6 +184,9 @@ class BaseAgent:
         #                               ep_print,
         #                               interval=10,
         #                               offset=self.random_sampling_steps)
+
+    def process_state(self, *args):
+        return self.env.process_state(*args, device=self.device)
 
     def process_batch(self, *args):
         return self.env.process_batch(*args, device=self.device)

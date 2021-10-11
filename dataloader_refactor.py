@@ -80,34 +80,46 @@ if __name__ == "__main__":
     )
 
     dataloader = train_dataloader(
-        explorer.memory, 200, kwargs['batch_size'], num_workers=kwargs['dataloader_workers'],
+        explorer.memory,
+        kwargs['max_steps_per_episode'],
+        kwargs['batch_size'],
+        num_workers=kwargs['dataloader_workers'],
         prefetch_factor=kwargs['prefetch_factor']
     )
 
+    print(kwargs['identifier'])
+
     try:
         # wait for enough steps to be sampled
-        while len(explorer.memory) < kwargs['batch_size']:
+        while len(explorer.memory) < 20:#kwargs['batch_size']:
             print(f'Current replay memory size: {len(explorer.memory)}')
             time.sleep(1)
 
-        progress_bar = tqdm.tqdm(enumerate(dataloader), total=200, ascii=True)
-        for idx_batch, batch in progress_bar:
-            progress_bar.set_postfix(sps=f'{explorer.memory.sps:.1f}', refresh=False)
-        # for idx_batch, batch in enumerate(dataloader):
+        agent.train(dataloader, explorer)
+
+        # progress_bar = tqdm.tqdm(enumerate(dataloader), total=200, ascii=True)
+        # for idx_batch, batch in progress_bar:
+        #     progress_bar.set_postfix(sps=f'{explorer.memory.sps:.1f}', refresh=False)
+            
+        #     for idx_batch, batch in enumerate(dataloader):
+        #         batch = agent.process_batch(batch)
+        #         print(len(batch))
             # print(idx_batch, len(buffer))
-            batch = agent.process_batch(batch)
+            
 
-            q1_loss, q2_loss = agent._calc_q_loss(*batch)
-            agent.qnet.backward_with_loss(q1_loss + q2_loss)
-            agent._soft_update_target(agent.qnet, agent.qnet_target)
+        #     q1_loss, q2_loss = agent._calc_q_loss(*batch)
+        #     agent.qnet.backward_with_loss(q1_loss + q2_loss)
+        #     agent._soft_update_target(agent.qnet, agent.qnet_target)
 
-            p_loss, entropy = agent._calc_policy_loss(*batch)
-            agent.pnet.backward_with_loss(p_loss)
+        #     p_loss, entropy = agent._calc_policy_loss(*batch)
+        #     agent.pnet.backward_with_loss(p_loss)
 
-            a_loss = agent._calc_alpha_loss(*batch)
-            agent.temp.backward_with_loss(a_loss)
+        #     a_loss = agent._calc_alpha_loss(*batch)
+        #     agent.temp.backward_with_loss(a_loss)
 
         explorer.join()
     except KeyboardInterrupt:
         print('Exiting...')
         explorer.join()
+
+

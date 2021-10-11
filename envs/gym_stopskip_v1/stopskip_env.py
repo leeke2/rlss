@@ -206,11 +206,12 @@ class StopSkipEnv(gym.Env):
         self.last_objective = 1
 
     def reset(self, demands=None):
-        if self.i_attempt == self.n_attempts_per_problem - 1 or self.i_attempt == -1:
-            self.reset_problem(demands=demands)
-            self.i_attempt = -1
+        # if self.i_attempt == self.n_attempts_per_problem - 1 or self.i_attempt == -1:
+        #     self.reset_problem(demands=demands)
+        #     self.i_attempt = -1
 
-        self.i_attempt += 1
+        # self.i_attempt += 1
+        self.reset_problem(demands=demands)
         self.reset_solution()
 
         return self._obs()
@@ -438,13 +439,7 @@ class StopSkipEnv(gym.Env):
 
         return self._obs(), objective, step_reward, done
 
-    def process_batch(self, batch, device='cuda'):  # pylint: disable=missing-function-docstring
-        state = (batch[:3])
-        action = batch[3]
-        reward = batch[4]
-        next_state = batch[6:]
-        done = batch[5]
-
+    def process_state(self, state, device='cuda'):
         batch_size = state[0].shape[0]
         state = (
             state[0],
@@ -453,15 +448,19 @@ class StopSkipEnv(gym.Env):
             state[2]
         )
 
-        next_state = (
-            next_state[0],
-            next_state[1],
-            self._edge_indices.repeat(batch_size, 1, 1),
-            next_state[2]
-        )
+        to_tensor = lambda x: x if isinstance(x, torch.Tensor) else torch.from_numpy(x)
+        return tuple(to_tensor(item).to(device) for item in state)
 
-        state = tuple(item.to(device) for item in state)
-        next_state = tuple(item.to(device) for item in next_state)
+    def process_batch(self, batch, device='cuda'):  # pylint: disable=missing-function-docstring
+        state = (batch[:3])
+        action = batch[3]
+        reward = batch[4]
+        next_state = batch[6:]
+        done = batch[5]
+
+        batch_size = state[0].shape[0]
+        state = self.process_state(state, device=device)
+        next_state = self.process_state(next_state, device=device)
 
         done = done.int().to(device)
         reward = reward.to(device)

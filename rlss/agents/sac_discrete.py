@@ -10,6 +10,7 @@ from ..utils.base import BaseClass
 from ..utils.logger import InfoType
 from ..nets import Temperature
 import time
+import tqdm
 
 
 class DSACAgent(BaseAgent):
@@ -71,8 +72,8 @@ class DSACAgent(BaseAgent):
         action, _ = self._get_action(self.state)
         new_state, _, reward, done = self.env.step(action)
 
-        self._memory.push((self.state, action, reward, new_state, done), i_episode=self._logger.i_episode)
-        self.state = new_state
+        # self._memory.push((self.state, action, reward, new_state, done), i_episode=self._logger.i_episode)
+        self.state = self.process_state(new_state)
 
         self._log(InfoType.Step.StepReward, reward)
         self._log(InfoType.Episode.EpDone, done)
@@ -151,11 +152,9 @@ class DSACAgent(BaseAgent):
 
         return (self.log_alpha * (entropy - self.entropy_target).detach()).mean()
 
-    def _update(self) -> None:
+    def _update(self, batch) -> None:
         """Summary
         """
-        batch, _ = self._memory.sample(self.batch_size)
-
         # Update critic
         q1_loss, q2_loss = self._calc_q_loss(*batch)
         self.qnet.backward_with_loss(q1_loss + q2_loss)
@@ -181,7 +180,7 @@ class DSACAgent(BaseAgent):
         self._log(InfoType.Step.Entropy, entropy.item())
         self._log(InfoType.Step.Alpha, self.alpha.item())
 
-    def train(self, n_episodes=10):
+    def train(self, dataloader, explorer, n_episodes=10):
         """Summary
 
         Args:
@@ -190,11 +189,25 @@ class DSACAgent(BaseAgent):
         self._register_callbacks()
 
         for _ in self._logger.ep_counter(n_episodes):
-            self.state = self.env.reset()
+            self.state = self.process_state(self.env.reset())
 
-            for _ in self._logger.step_counter(self.max_steps_per_episode):
+            progress_bar = tqdm.tqdm(
+                zip(
+                    self._logger.step_counter(self.max_steps_per_episode),
+                    dataloader
+                ),
+                total=self.max_steps_per_episode,
+                ascii=True
+            )
+
+            done = False
+            for idx_batch, batch in progress_bar:
+                if done:
+                    continue
+
+                progress_bar.set_postfix(sps=f'{explorer.memory.sps:.1f}', refresh=False)
+                self._update(self.process_batch(batch))
+
                 done = self._gather_experience()
-
                 if done:
                     self._logger.episode_done()
-                    break
