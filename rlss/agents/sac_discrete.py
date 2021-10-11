@@ -207,6 +207,7 @@ class DSACAgent(BaseAgent):
                 done = self._gather_experience()
                 if done:
                     self._logger.episode_done()
+                    break
 
             # for idx_batch, batch in progress_bar:
             #     progress_bar.set_postfix(sps=f'{explorer.memory.sps:.1f}', refresh=False)
