@@ -17,15 +17,16 @@ class ReplayMemory: # pylint: disable=missing-class-docstring
         self.buffer_len = np.ndarray((1, ), buffer=self.buffer_len_shm.buf, dtype=np.uint32)
 
         self.sps_shm = SharedMemory(create=True, size=np.dtype(np.float32).itemsize)
-        self.sps = np.ndarray((1, ), buffer=self.sps_shm.buf, dtype=np.float32)
+        self.sps_arr = np.ndarray((1, ), buffer=self.sps_shm.buf, dtype=np.float32)
 
         self.buffer_size = buffer_size
 
     def __len__(self):
         return self.buffer_len[0]
 
+    @property
     def sps(self):
-        return self.sps[0]
+        return self.sps_arr[0]
 
     @property
     def recreate_sps_fn(self):

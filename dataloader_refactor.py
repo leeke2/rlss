@@ -92,7 +92,7 @@ if __name__ == "__main__":
 
         progress_bar = tqdm.tqdm(enumerate(dataloader), total=200, ascii=True)
         for idx_batch, batch in progress_bar:
-            progress_bar.set_postfix(sps=f'{explorer.memory.sps:.1f}/s', refresh=False)
+            progress_bar.set_postfix(sps=f'{explorer.memory.sps:.1f}', refresh=False)
         # for idx_batch, batch in enumerate(dataloader):
             # print(idx_batch, len(buffer))
             batch = agent.process_batch(batch)
