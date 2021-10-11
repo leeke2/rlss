@@ -202,12 +202,12 @@ class DSACAgent(BaseAgent):
 
             done = False
             for idx_batch, batch in progress_bar:
-                if done:
-                    continue
-
                 progress_bar.set_postfix(sps=f'{explorer.memory.sps:.1f}', refresh=False)
-                self._update(self.process_batch(batch))
 
-                done = self._gather_experience()
-                if done:
-                    self._logger.episode_done()
+                if not done:
+                    done = self._gather_experience()
+
+                    if done:
+                        self._logger.episode_done()
+
+                    self._update(self.process_batch(batch))
