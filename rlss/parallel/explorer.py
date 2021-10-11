@@ -14,6 +14,7 @@ import signal
 import time
 
 CHUNK_SIZE = 10
+SPS_SAMPLING_BUFFER = 30
 
 class DispatcherProcess(Process):  # pylint: disable=missing-class-docstring, too-few-public-methods
     def __init__(self, in_queues, out_queues, buffer_size, recreate_buffer_len_fn, recreate_sps_fn):
@@ -26,10 +27,10 @@ class DispatcherProcess(Process):  # pylint: disable=missing-class-docstring, to
         self.buffer_len_shm, self.buffer_len = recreate_buffer_len_fn()
         self.sps_shm, self.sps = recreate_sps_fn()
 
-        self.time_start = None
+        self.times = []
 
     def run(self):  # pylint: disable=missing-function-docstring
-        self.time_start = time.time()
+        self.times.append((time.time(), 0))
         n_samples = 0
 
         busy = [False for _ in self.in_queues]
@@ -56,12 +57,13 @@ class DispatcherProcess(Process):  # pylint: disable=missing-class-docstring, to
                 if self.buffer_len < self.buffer_size:
                     self.buffer_len += min(CHUNK_SIZE, self.buffer_len - self.buffer_size)
 
-                cur_time = time.time()
-                if cur_time - self.time_start > 60:
-                    self.sps *= 0
-                    self.sps += n_samples / (cur_time - self.time_start)
+                self.times.append((time.time(), n_samples))
+                if len(self.times) > SPS_SAMPLING_BUFFER:
+                    self.times = self.times[1:]
 
-                    self.time_start = time.time()
+                if len(self.times) > 1:
+                    self.sps *= 0
+                    self.sps += (self.times[-1][1] - self.times[0][1]) / (self.times[-1][0] - self.times[0][0])
 
         self.buffer_len_shm.close()
         self.sps_shm.close()

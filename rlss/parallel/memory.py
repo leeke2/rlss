@@ -50,6 +50,6 @@ class ReplayMemory: # pylint: disable=missing-class-docstring
         return [buf[idx] for buf in self.buffer]
 
     def close(self): # pylint: disable=missing-function-docstring
-        for shm in [self.buffer_len_shm, self.status_shm] + list(self.shms):
+        for shm in [self.buffer_len_shm, self.status_shm, self.sps_shm] + list(self.shms):
             shm.close()
             shm.unlink()
