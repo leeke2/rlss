@@ -37,7 +37,7 @@ class DSACAgent(BaseAgent):
 
         self._REQUIRED_PARAMS = [
             'graph_transformer_encoder', 'max_steps_per_episode', 'batch_size', 'gamma', 'tau',
-            'steps_before_updating', 'save_interval', 'update_interval', 'random_sampling_steps']
+            'steps_before_updating', 'save_interval', 'update_interval']
         BaseClass.__init__(self, **kwargs)
 
         self.env = env

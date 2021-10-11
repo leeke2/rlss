@@ -60,7 +60,8 @@ class BaseAgent:
         Returns:
             bool: Description
         """
-        return self._logger.i_step < self.random_sampling_steps
+        return False
+        # return self._logger.i_step < self.random_sampling_steps
 
     def _soft_update_target(self, net: torch.nn.Module, target_net: torch.nn.Module) -> None:
         """Summary
@@ -183,3 +184,6 @@ class BaseAgent:
         #                               ep_print,
         #                               interval=10,
         #                               offset=self.random_sampling_steps)
+
+    def process_batch(self, *args):
+        return self.env.process_batch(*args, device=self.device)

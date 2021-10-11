@@ -70,8 +70,16 @@ class ArgsManager:
             else:
                 return x[0]
 
+        def buffer_size(x, args):
+            if args['batch_size'] > x:
+                raise ValueError('Batch size larger than buffer size.')
+
+            return x
+
         self.add('file', nargs='*', default='', type=str,
                  rename='identifier', process_fn=identifier)
+        self.add('--buffer_size', default=1_000_000, type=int,
+                 process_fn=buffer_size)
 
     def parse_value(self, val):
         if val == 'False':

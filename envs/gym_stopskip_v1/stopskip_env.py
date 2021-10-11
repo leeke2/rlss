@@ -437,3 +437,34 @@ class StopSkipEnv(gym.Env):
         self.last_objective = objective
 
         return self._obs(), objective, step_reward, done
+
+    def process_batch(self, batch, device='cuda'):  # pylint: disable=missing-function-docstring
+        state = (batch[:3])
+        action = batch[3]
+        reward = batch[4]
+        next_state = batch[6:]
+        done = batch[5]
+
+        batch_size = state[0].shape[0]
+        state = (
+            state[0],
+            state[1],
+            self._edge_indices.repeat(batch_size, 1, 1),
+            state[2]
+        )
+
+        next_state = (
+            next_state[0],
+            next_state[1],
+            self._edge_indices.repeat(batch_size, 1, 1),
+            next_state[2]
+        )
+
+        state = tuple(item.to(device) for item in state)
+        next_state = tuple(item.to(device) for item in next_state)
+
+        done = done.int().to(device)
+        reward = reward.to(device)
+        action = action.to(device)
+
+        return (state, action, reward, next_state, done)
