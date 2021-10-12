@@ -207,6 +207,7 @@ class Explorer:  # pylint: disable=missing-class-docstring
                 create_env_fn,
                 self.job_queue,
                 self.res_queues[i],
+                policy,
                 random_sampling_steps
             )
 
