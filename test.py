@@ -1,25 +1,30 @@
 import torch
 from torch import nn, optim, Tensor
-from torch.multiprocessing import Process
+from torch.multiprocessing import Process, Queue
 import time
 
 class exp_process(Process):
-    def __init__(self, model):
+    def __init__(self, model, queue):
         super().__init__()
         self.model = model
+        self.queue = queue
 
     def run(self):
         self.model.to('cuda:1')
 
         while True:
+            if not self.queue.empty():
+                self.mode.load_state_dict(self.queue.get())
+
             print(f'Explorer {torch.sum(self.model.weight)}')
             time.sleep(1)
 
 class train_process(Process):
-    def __init__(self, model, inference_model):
+    def __init__(self, model, inference_model, queue):
         super().__init__()
         self.model = model
         self.inference_model = inference_model
+        self.queue = queue
 
     @property
     def device(self):
@@ -40,7 +45,8 @@ class train_process(Process):
             opt.step()
 
             print(f'Updated {torch.sum(self.model.weight)}')
-            self.inference_model.load_state_dict(self.model.state_dict())
+            queue.put(self.model.state_dict())
+
             time.sleep(5)
 
 if __name__ == "__main__":
@@ -51,10 +57,12 @@ if __name__ == "__main__":
     b.load_state_dict(a.state_dict())
     b.share_memory()
 
-    p = exp_process(b)
+    queue = Queue()
+
+    p = exp_process(b, queue)
     p.start()
 
-    q = train_process(a, b)
+    q = train_process(a, b, queue)
     q.start()
 
 
