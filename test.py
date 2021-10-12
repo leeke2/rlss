@@ -21,10 +21,14 @@ class train_process(Process):
         self.model = model
         self.inference_model = inference_model
 
-        self.device = self.model.weight.device
+    @property
+    def device(self):
+        return self.model.weight.device
+    
 
     def run(self):
         self.model.to('cuda:0')
+
         opt = optim.Adam(self.model.parameters(), lr=0.001)
 
         while True:
