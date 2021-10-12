@@ -123,7 +123,7 @@ class ExplorerProcess(Process): # pylint: disable=missing-class-docstring, too-m
                     torch.from_numpy(state[2])
                 )
 
-                self.inference_queue.put((worker_id, processed_state))
+                self.inference_queue.put((self.worker_id, processed_state))
                 while self.result_queue.empty():
                     pass
 
