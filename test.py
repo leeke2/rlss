@@ -14,7 +14,7 @@ class exp_process(Process):
 
         while True:
             if not self.queue.empty():
-                self.mode.load_state_dict(self.queue.get())
+                self.model.load_state_dict(self.queue.get())
 
             print(f'Explorer {torch.sum(self.model.weight)}')
             time.sleep(1)
