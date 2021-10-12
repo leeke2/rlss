@@ -6,13 +6,35 @@ import time
 class exp_process(Process):
     def __init__(self, model):
         super().__init__()
-        self.model = model
+        self.model = model.to('cuda:1')
 
     def run(self):
-        self.model.cuda()
         while True:
             print(f'Explorer {torch.sum(self.model.weight)}')
             time.sleep(1)
+
+class train_process(Process):
+    def __init__(self, model, inference_model):
+        super().__init__()
+        self.model = model.to('cuda:0')
+        self.inference_model = inference_model
+
+        self.device = self.model.weight.device
+
+    def run(self):
+        opt = optim.Adam(self.model.parameters(), lr=0.001)
+
+        while True:
+            loss = nn.functional.mse_loss(
+                self.model(Tensor([[1,2]]).to(self.device)),
+                torch.rand(1,5).to(self.device)
+            )
+            loss.backward()
+            opt.step()
+
+            print(f'Updated {torch.sum(self.model.weight)}')
+            self.inference_model.load_state_dict(self.model.state_dict())
+            time.sleep(5)
 
 if __name__ == "__main__":
     a = nn.Linear(2, 5)
@@ -25,21 +47,8 @@ if __name__ == "__main__":
     p = exp_process(b)
     p.start()
 
-    a.cuda()
-
-    opt = optim.Adam(a.parameters(), lr=0.001)
-
-    for _ in range(10):
-        loss = nn.functional.mse_loss(
-    	a(Tensor([[1,2]])),
-    	torch.rand(1,5)
-        )
-        loss.backward()
-        opt.step()
-
-        print(f'Updated {torch.sum(a.weight)}')
-        b.load_state_dict(a.state_dict())
-        time.sleep(5)
+    q = train_process(a, b)
+    q.start()
 
 
     # print(torch.allclose(linear_1.cpu().weight, linear_2.weight))
