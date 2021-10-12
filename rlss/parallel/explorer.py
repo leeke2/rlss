@@ -195,7 +195,8 @@ class Explorer:  # pylint: disable=missing-class-docstring
         self.res_queues = [Queue() for _ in range(num_workers)]
         device = 'cuda:1'
         inferencer = ExplorerInferenceProcess(policy, self.job_queue, self.res_queues, device)
-
+        inferencer.start()
+        
         # RolloutWorkers
         for i in range(num_workers):
             queues = Queue(), Queue()
@@ -285,7 +286,7 @@ class ExplorerInferenceProcess(Process):
             return tuple(self.move_to_device(item)
                          for item in state)
 
-        return item.to(self.device)
+        return state.to(self.device)
 
     def run(self):
         self.model.to(self.device)
