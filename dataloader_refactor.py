@@ -56,8 +56,6 @@ def create_qnet(*args, **kwargs) -> BaseNet: # pylint: disable=missing-function-
 
 
 if __name__ == "__main__":
-    mp.set_start_method('spawn')
-
     am = ArgsManager()
     kwargs = am.parse()
 

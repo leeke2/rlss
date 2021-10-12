@@ -68,68 +68,71 @@ class DispatcherProcess(Process):  # pylint: disable=missing-class-docstring, to
         self.buffer_len_shm.close()
         self.sps_shm.close()
 
-class ExplorerProcess(Process): # pylint: disable=missing-class-docstring, too-many-instance-attributes, too-few-public-methods
-    def __init__(
-        self,
-        in_queue: torch.multiprocessing.Queue,
-        out_queue: torch.multiprocessing.Queue,
-        recreate_buffer_fn: T.Callable[..., T.Callable[[], np.ndarray]],
-        recerate_ready_fn: T.Callable[..., T.Callable[[], np.ndarray]],
-        create_env_fn: T.Callable[..., T.Any],
-        policy: BasePolicyNet,
-        random_sampling_steps: int
-    ): # pylint: disable=missing-function-docstring, too-many-arguments
-    # buffer_shms, buffer_ready_shm, buffer_shapes, buffer_dtypes,
+def explorer_process_wrapper(ctxp):
+    class ExplorerProcess(ctxp): # pylint: disable=missing-class-docstring, too-many-instance-attributes, too-few-public-methods
+        def __init__(
+            self,
+            in_queue: torch.multiprocessing.Queue,
+            out_queue: torch.multiprocessing.Queue,
+            recreate_buffer_fn: T.Callable[..., T.Callable[[], np.ndarray]],
+            recerate_ready_fn: T.Callable[..., T.Callable[[], np.ndarray]],
+            create_env_fn: T.Callable[..., T.Any],
+            policy: BasePolicyNet,
+            random_sampling_steps: int
+        ): # pylint: disable=missing-function-docstring, too-many-arguments
+        # buffer_shms, buffer_ready_shm, buffer_shapes, buffer_dtypes,
 
-    # def __init__(self, in_queue, out_queue, buffer_shms, buffer_ready_shm, buffer_shapes,
-    # buffer_dtypes, create_env_fn, policy): # a]pylint: disable=missing-function-docstring
-        super().__init__()
+        # def __init__(self, in_queue, out_queue, buffer_shms, buffer_ready_shm, buffer_shapes,
+        # buffer_dtypes, create_env_fn, policy): # a]pylint: disable=missing-function-docstring
+            super().__init__()
 
-        self.env = create_env_fn()
-        self.buffer_shm, self.buffer = recreate_buffer_fn()
-        self.buffer_ready_shm, self.buffer_ready = recerate_ready_fn()
+            self.env = create_env_fn()
+            self.buffer_shm, self.buffer = recreate_buffer_fn()
+            self.buffer_ready_shm, self.buffer_ready = recerate_ready_fn()
 
-        self.transitions = []
-        self.in_queue = in_queue
-        self.out_queue = out_queue
-        self.stop = False
-        self.policy = policy
-        self.random_sampling_steps = random_sampling_steps
-        self.i_step = 0
+            self.transitions = []
+            self.in_queue = in_queue
+            self.out_queue = out_queue
+            self.stop = False
+            self.policy = policy
+            self.random_sampling_steps = random_sampling_steps
+            self.i_step = 0
 
-        self.io_thread = ExplorerIOThread(self)
+            self.io_thread = ExplorerIOThread(self)
 
-    def run(self): # pylint: disable=missing-function-docstring
-        self.io_thread.start()
+        def run(self): # pylint: disable=missing-function-docstring
+            self.io_thread.start()
 
-        state = self.env._obs()
-        while not self.stop:
-            if len(self.transitions) >= CHUNK_SIZE * 20:
-                continue
+            state = self.env._obs()
+            while not self.stop:
+                if len(self.transitions) >= CHUNK_SIZE * 20:
+                    continue
 
-            if self.i_step < self.random_sampling_steps:
-                action = self.env.action_space.sample()
-            else:
-                processed_state = (
-                    torch.from_numpy(state[0]),
-                    torch.from_numpy(state[1]),
-                    self.env._edge_indices.repeat(1, 1, 1),
-                    torch.from_numpy(state[2])
-                )
+                if self.i_step < self.random_sampling_steps:
+                    action = self.env.action_space.sample()
+                else:
+                    processed_state = (
+                        torch.from_numpy(state[0]),
+                        torch.from_numpy(state[1]),
+                        self.env._edge_indices.repeat(1, 1, 1),
+                        torch.from_numpy(state[2])
+                    )
 
-                with torch.no_grad():
-                    # print(f'[{hex(os.getpid())}] Rollout: {hex(hash(self.policy.state_dict().values()))}')
-                    print(f'Rollout: {torch.sum(list(self.policy.state_dict().items())[0][1])}')
-                    action = self.policy(*processed_state).argmax().item()
+                    with torch.no_grad():
+                        # print(f'[{hex(os.getpid())}] Rollout: {hex(hash(self.policy.state_dict().values()))}')
+                        print(f'Rollout: {torch.sum(list(self.policy.state_dict().items())[0][1])}')
+                        action = self.policy(*processed_state).argmax().item()
 
-            next_state, _, reward, done = self.env.step(action)
+                next_state, _, reward, done = self.env.step(action)
 
-            self.transitions.append((*state, action, reward, done, *next_state))
-            self.i_step += 1
+                self.transitions.append((*state, action, reward, done, *next_state))
+                self.i_step += 1
 
-            state = next_state
-            if done:
-                self.env.reset()
+                state = next_state
+                if done:
+                    self.env.reset()
+
+    return ExplorerProcess
 
 class ExplorerIOThread(threading.Thread): # pylint: disable=missing-class-docstring
     def __init__(self, process): # pylint: disable=missing-function-docstring
@@ -179,8 +182,10 @@ class Explorer:  # pylint: disable=missing-class-docstring
         sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
 
         for _ in range(num_workers):
-            queues = Queue(), Queue()
-            worker = ExplorerProcess(
+            ctx = torch.multiprocessing.get_context('spawn')
+
+            queues = ctx.Queue(), ctx.Queue()
+            worker = explorer_process_wrapper(ctx.Process)(
                 *queues,
                 self.memory.recreate_buffer_fn,
                 self.memory.recerate_ready_fn,
