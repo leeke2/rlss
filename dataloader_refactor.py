@@ -67,6 +67,8 @@ if __name__ == "__main__":
     rollout_policy = create_pnet(*env_dim, env.pos_enc_dim, **kwargs)
     critic = create_qnet(*env_dim, env.pos_enc_dim, **kwargs)
 
+    print(policy.device, rollout_policy.device, critic.device)
+
     policy.share_memory()
     rollout_policy.load_state_dict(policy.state_dict())
     rollout_policy.share_memory().eval()
