@@ -8,6 +8,7 @@ from rlss.agents.sac_discrete import DSACAgent
 from rlss.utils import ArgsManager, state_action_dims
 from rlss.nets import TrTwinQNet, TrPolicyNet, BaseNet, BasePolicyNet
 import torch
+import torch.multiprocessing as mp
 from torch.utils.data import IterableDataset, DataLoader
 from torch.multiprocessing import Queue
 import tqdm
@@ -55,6 +56,8 @@ def create_qnet(*args, **kwargs) -> BaseNet: # pylint: disable=missing-function-
 
 
 if __name__ == "__main__":
+    mp.set_start_method('spawn')
+
     am = ArgsManager()
     kwargs = am.parse()
 
@@ -63,13 +66,20 @@ if __name__ == "__main__":
     env = create_env_fn()
     env_dim = state_action_dims(env)
     policy = create_pnet(*env_dim, env.pos_enc_dim, **kwargs)
-    rollout_policy = create_pnet(*env_dim, env.pos_enc_dim, **kwargs).cpu()
+    rollout_policy = create_pnet(*env_dim, env.pos_enc_dim, **kwargs)
     critic = create_qnet(*env_dim, env.pos_enc_dim, **kwargs)
-    agent = DSACAgent(env, policy, critic, **kwargs)
+
+    if kwargs['device'] == 'cuda' and torch.cuda.device_count() > 1:
+        rollout_policy.to('cuda:1')
 
     policy.share_memory()
     rollout_policy.load_state_dict(policy.state_dict())
     rollout_policy.share_memory().eval()
+
+    agent = DSACAgent(env, policy, rollout_policy, critic, **kwargs)
+
+    print(f'rollout_policy: {hash(rollout_policy.state_dict().values)}')
+    print(f'policy: {hash(policy.state_dict().values)}')
 
     explorer = Explorer(
         create_env_fn,

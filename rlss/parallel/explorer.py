@@ -118,6 +118,8 @@ class ExplorerProcess(Process): # pylint: disable=missing-class-docstring, too-m
                 )
 
                 with torch.no_grad():
+                    # print(f'[{hex(os.getpid())}] Rollout: {hex(hash(self.policy.state_dict().values()))}')
+                    print(f'Rollout: {torch.sum(list(self.policy.state_dict().items())[0][1])}')
                     action = self.policy(*processed_state).argmax().item()
 
             next_state, _, reward, done = self.env.step(action)

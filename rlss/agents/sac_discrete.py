@@ -27,7 +27,7 @@ class DSACAgent(BaseAgent):
         temp (TYPE): Description
     """
 
-    def __init__(self, env, pnet: BaseNet, qnet: BaseNet, **kwargs):
+    def __init__(self, env, pnet: BaseNet, rollout_pnet: BaseNet, qnet: BaseNet, **kwargs):
         """Summary
 
         Args:
@@ -42,6 +42,7 @@ class DSACAgent(BaseAgent):
         BaseClass.__init__(self, **kwargs)
 
         self.env = env
+        self.rollout_pnet = rollout_pnet
         self.pnet = pnet
         self.qnet = qnet
         self.qnet_target = self.qnet.target_copy()
@@ -179,6 +180,9 @@ class DSACAgent(BaseAgent):
         self._log(InfoType.Step.LossAlpha, a_loss.item())
         self._log(InfoType.Step.Entropy, entropy.item())
         self._log(InfoType.Step.Alpha, self.alpha.item())
+
+        self.rollout_pnet.load_state_dict(self.pnet.state_dict())
+        print(f'Updated: {torch.sum(list(self.pnet.state_dict().items())[0][1])}')
 
     def train(self, dataloader, explorer, n_episodes=10):
         """Summary
