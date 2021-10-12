@@ -15,7 +15,6 @@ import time
 
 CHUNK_SIZE = 10
 SPS_SAMPLING_BUFFER = 30
-ctx = torch.multiprocessing.get_context('spawn')
 
 class DispatcherProcess(Process):  # pylint: disable=missing-class-docstring, too-few-public-methods
     def __init__(self, in_queues, out_queues, buffer_size, recreate_buffer_len_fn, recreate_sps_fn):
@@ -69,14 +68,17 @@ class DispatcherProcess(Process):  # pylint: disable=missing-class-docstring, to
         self.buffer_len_shm.close()
         self.sps_shm.close()
 
-class ExplorerProcess(ctx.Process): # pylint: disable=missing-class-docstring, too-many-instance-attributes, too-few-public-methods
+class ExplorerProcess(Process): # pylint: disable=missing-class-docstring, too-many-instance-attributes, too-few-public-methods
     def __init__(
         self,
+        worker_id: int,
         in_queue: torch.multiprocessing.Queue,
         out_queue: torch.multiprocessing.Queue,
         recreate_buffer_fn: T.Callable[..., T.Callable[[], np.ndarray]],
         recerate_ready_fn: T.Callable[..., T.Callable[[], np.ndarray]],
         create_env_fn: T.Callable[..., T.Any],
+        inference_queue: Queue,
+        result_queue: Queue,
         policy: BasePolicyNet,
         random_sampling_steps: int
     ): # pylint: disable=missing-function-docstring, too-many-arguments
@@ -86,6 +88,7 @@ class ExplorerProcess(ctx.Process): # pylint: disable=missing-class-docstring, t
     # buffer_dtypes, create_env_fn, policy): # a]pylint: disable=missing-function-docstring
         super().__init__()
 
+        self.worker_id = worker_id
         self.env = create_env_fn()
         self.buffer_shm, self.buffer = recreate_buffer_fn()
         self.buffer_ready_shm, self.buffer_ready = recerate_ready_fn()
@@ -94,6 +97,8 @@ class ExplorerProcess(ctx.Process): # pylint: disable=missing-class-docstring, t
         self.in_queue = in_queue
         self.out_queue = out_queue
         self.stop = False
+        self.inference_queue = inference_queue
+        self.result_queue = result_queue
         self.policy = policy
         self.random_sampling_steps = random_sampling_steps
         self.i_step = 0
@@ -118,10 +123,16 @@ class ExplorerProcess(ctx.Process): # pylint: disable=missing-class-docstring, t
                     torch.from_numpy(state[2])
                 )
 
-                with torch.no_grad():
-                    # print(f'[{hex(os.getpid())}] Rollout: {hex(hash(self.policy.state_dict().values()))}')
-                    print(f'Rollout: {torch.sum(list(self.policy.state_dict().items())[0][1])}')
-                    action = self.policy(*processed_state).argmax().item()
+                self.inference_queue.put((worker_id, processed_state))
+                while self.result_queue.empty():
+                    pass
+
+                action = self.result_queue.argmax().item()
+
+                # with torch.no_grad():
+                #     # print(f'[{hex(os.getpid())}] Rollout: {hex(hash(self.policy.state_dict().values()))}')
+                #     print(f'Rollout: {torch.sum(list(self.policy.state_dict().items())[0][1])}')
+                #     action = self.policy(*processed_state).argmax().item()
 
             next_state, _, reward, done = self.env.step(action)
 
@@ -179,14 +190,23 @@ class Explorer:  # pylint: disable=missing-class-docstring
 
         sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-        for _ in range(num_workers):
-            queues = ctx.Queue(), ctx.Queue()
+        # Inference Process
+        self.job_queue = Queue()
+        self.res_queues = [Queue() for _ in range(num_workers)]
+        device = 'cuda:1'
+        inferencer = ExplorerInferenceProcess(policy, self.job_queue, self.res_queues, device)
+
+        # RolloutWorkers
+        for i in range(num_workers):
+            queues = Queue(), Queue()
             worker = ExplorerProcess(
+                i,
                 *queues,
                 self.memory.recreate_buffer_fn,
                 self.memory.recerate_ready_fn,
                 create_env_fn,
-                policy,
+                self.job_queue,
+                self.res_queues[i],
                 random_sampling_steps
             )
 
@@ -243,5 +263,59 @@ class Explorer:  # pylint: disable=missing-class-docstring
         self.dispatcher.join()
         self.memory.close()
 
+
+class ExplorerInferenceProcess(Process):
+    def __init__(
+        self,
+        model: torch.nn.Module,
+        job_queue: Queue,
+        res_queues: T.List[Queue],
+        device: T.Optional[str] = 'cpu'
+    ):
+
+        super().__init__()
+        self.model = model
+        self.device = device
+        self.job_queue = job_queue
+        self.res_queues = res_queues
+
+    def move_to_device(self, state):
+        if isinstance(state, tuple):
+            return tuple(self.move_to_device(item)
+                         for item in state)
+
+        return item.to(self.device)
+
+    def run(self):
+        self.model.to(self.device)
+
+        while True:
+            if not self.job_queue.empty():
+                job = self.job_queue.get()
+
+                if job is None:
+                    break
+
+                worker_id, state = job
+
+                with torch.no_grad():
+                    out = self.model(*self.move_to_device(state)).cpu()
+
+                self.res_queues[worker_id].put(out)
+
+
+
 if __name__ == '__main__':
     pass
+
+
+
+
+
+
+
+
+
+
+
+
