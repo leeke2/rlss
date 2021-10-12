@@ -6,9 +6,11 @@ import time
 class exp_process(Process):
     def __init__(self, model):
         super().__init__()
-        self.model = model.to('cuda:1')
+        self.model = model
 
     def run(self):
+        self.model.to('cuda:1')
+
         while True:
             print(f'Explorer {torch.sum(self.model.weight)}')
             time.sleep(1)
@@ -16,12 +18,13 @@ class exp_process(Process):
 class train_process(Process):
     def __init__(self, model, inference_model):
         super().__init__()
-        self.model = model.to('cuda:0')
+        self.model = model
         self.inference_model = inference_model
 
         self.device = self.model.weight.device
 
     def run(self):
+        self.model.to('cuda:0')
         opt = optim.Adam(self.model.parameters(), lr=0.001)
 
         while True:
