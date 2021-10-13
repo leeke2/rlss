@@ -178,7 +178,8 @@ class Explorer:  # pylint: disable=missing-class-docstring
         policy: T.Optional[BasePolicyNet] = None,
         num_workers: int = 2,
         buffer_size: int = 1_000,
-        random_sampling_steps: int = 10_000
+        random_sampling_steps: int = 10_000,
+        **kwargs
     ): # pylint: disable=too-many-arguments
 
         dtypes, shapes = Explorer.get_experience_dtypes_shapes(create_env_fn())
@@ -193,8 +194,7 @@ class Explorer:  # pylint: disable=missing-class-docstring
         # Inference Process
         self.job_queue = Queue()
         self.res_queues = [Queue() for _ in range(num_workers)]
-        device = 'cuda:1'
-        inferencer = ExplorerInferenceProcess(policy, self.job_queue, self.res_queues, device)
+        inferencer = ExplorerInferenceProcess(policy, self.job_queue, self.res_queues, kwargs['device'])
         inferencer.start()
         
         # RolloutWorkers
@@ -281,6 +281,8 @@ class ExplorerInferenceProcess(Process):
         self.job_queue = job_queue
         self.res_queues = res_queues
 
+        self.device = device
+
     def move_to_device(self, state):
         if isinstance(state, tuple):
             return tuple(self.move_to_device(item)
@@ -289,7 +291,8 @@ class ExplorerInferenceProcess(Process):
         return state.to(self.device)
 
     def run(self):
-        self.model.to(self.device)
+        device = f'cuda:{torch.cuda.device_count() - 1}' if self.device == 'cuda' and torch.cuda.device_count() > 1 else 'cpu'
+        self.model.to(device)
 
         while True:
             if not self.job_queue.empty():

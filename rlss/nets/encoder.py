@@ -4,8 +4,6 @@ from torch.nn import (
     Module, Linear, LayerNorm, ModuleList, BatchNorm1d
 )
 from torch.nn import functional as F
-from torch_scatter import scatter_softmax, scatter_sum, scatter
-
 
 class MultiHeadAttentionLayer(Module):
     def __init__(
@@ -213,6 +211,8 @@ class GraphTransformerEncoder(Module):
         self._batch_size = None
 
     def forward(self, nodes, edges, edge_index, pos_enc):
+        from torch_scatter import scatter_softmax, scatter_sum, scatter
+
         batch_size, n_nodes, _ = nodes.shape
         nodes = nodes.flatten(start_dim=0, end_dim=1)
         edges = edges.flatten(start_dim=0, end_dim=1)

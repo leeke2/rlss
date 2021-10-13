@@ -8,6 +8,7 @@ import torch
 from torch import Tensor
 from torch.distributions import Categorical
 from gym.spaces import Tuple
+from torch.multiprocessing import Process
 
 from ..utils.base import BaseClass
 from ..utils.replay import ReplayMemory
@@ -15,7 +16,7 @@ from ..utils.logger import Logger, EpisodeEntry, StepEntry
 from ..utils.logger import CallbackTrigger as CT
 
 
-class BaseAgent:
+class BaseAgent(Process):
 
     """
     Base implementation for Reinforcement Learning agents
@@ -27,13 +28,21 @@ class BaseAgent:
         Args:
             **kwargs: Description
         """
+        super().__init__()
+
         self._REQUIRED_PARAMS = ['update_print_interval', 'identifier', 'device']
         BaseClass.__init__(self, **kwargs)
 
+    def run(self):
         self._memory = ReplayMemory(device=self.device)
         self._logger = Logger(self.identifier)
 
         self._log = self._logger.log
+
+        self.start_procedures()
+
+    def start_procedures(self):
+        raise NotImplementedError
 
     @property
     def alpha(self) -> torch.Tensor:

@@ -20,14 +20,15 @@ class DSACAgent(BaseAgent):
     Attributes:
         entropy_target (TYPE): Description
         env (TYPE): Description
-        pnet (TYPE): Description
+    pnet (TYPE): Description
         qnet (TYPE): Description
         qnet_target (TYPE): Description
         state (TYPE): Description
         temp (TYPE): Description
     """
 
-    def __init__(self, env, pnet: BaseNet, rollout_pnet: BaseNet, qnet: BaseNet, **kwargs):
+    def __init__(self, env, pnet: BaseNet, rollout_pnet: BaseNet, qnet: BaseNet, 
+        dataloader, explorer, n_episodes=10, **kwargs):
         """Summary
 
         Args:
@@ -49,8 +50,12 @@ class DSACAgent(BaseAgent):
 
         _, _, out_dim = state_action_dims(env)
 
-        self.temp = Temperature(**kwargs).to(self.device)
+        self.temp = Temperature(**kwargs)
         self.entropy_target = -0.98 * np.log(1 / out_dim)
+
+        self.dataloader = dataloader
+        self.explorer = explorer
+        self.n_episodes = n_episodes
 
     def _log(self, *args, **kwargs):
         """Summary
@@ -184,15 +189,26 @@ class DSACAgent(BaseAgent):
         self.rollout_pnet.load_state_dict(self.pnet.state_dict())
         print(f'Updated: {torch.sum(list(self.pnet.state_dict().items())[0][1])}')
 
+    def start_procedures(self):
+        self.pnet.to(self.device)
+        self.qnet.to(self.device)
+        self.qnet_target.to(self.device)
+        self.temp.to(self.device)
+
+        self.train(self.dataloader, self.explorer, n_episodes=self.n_episodes)
+
     def train(self, dataloader, explorer, n_episodes=10):
         """Summary
 
         Args:
             n_episodes (int, optional): Description
         """
+        print('Started training...')
+
         self._register_callbacks()
 
-        for _ in self._logger.ep_counter(n_episodes):
+        for i_ep in self._logger.ep_counter(n_episodes):
+            print(i_ep)
             self.state = self.process_state(self.env.reset())
 
             dataloader_iter = iter(dataloader)
