@@ -111,8 +111,6 @@ if __name__ == "__main__":
 
         agent = DSACAgent(env, policy, rollout_policy, critic, dataloader, explorer, **kwargs)
         agent.start()
-        
-        explorer.join()
     except KeyboardInterrupt:
             print('Exiting...')
             explorer.join()
