@@ -38,6 +38,8 @@ class ArgsManager:
         self.add('--var_tt', action='store_true')
         self.add('--transfer', default='', type=str)
 
+        self.add('--num_envs', default=200, type=int)
+
         self.add('-v', '--version', default=0, type=int)
 
         self.add('--rl', action='store_true')

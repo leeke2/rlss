@@ -89,6 +89,8 @@ if __name__ == "__main__":
         create_env_fn,
         policy=rollout_policy,
         num_workers=kwargs['rollout_workers'],
+        num_envs=kwargs['num_envs'],
+        buffer_size = kwargs['buffer_size'],
         random_sampling_steps=kwargs['random_sampling_steps'],
         device=kwargs['device']
     )
@@ -103,12 +105,13 @@ if __name__ == "__main__":
 
     try:
         min_data = kwargs['max_steps_per_episode'] * kwargs['batch_size']
-        while len(explorer.memory) < min_data:
+        while len(explorer.memory) < 100:
             print(f'Current replay memory size: {len(explorer.memory)}')
             time.sleep(1)
 
-
-        agent.train(dataloader, explorer)
+        agent = DSACAgent(env, policy, rollout_policy, critic, dataloader, explorer, **kwargs)
+        agent.start()
+        
         explorer.join()
     except KeyboardInterrupt:
             print('Exiting...')

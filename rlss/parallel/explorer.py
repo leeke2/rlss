@@ -404,7 +404,7 @@ class CudaExplorerProcess(Process):
 
         times = [time.time()]
         buffer_pos = 0
-        while not self.ins_queue.empty() or self.ins_queue.get() is not None:
+        while self.ins_queue.empty() or self.ins_queue.get() is not None:
             if np.all(self.ready):
                 self.buffer_len += min(self.buffer_size - self.buffer_len, self.num_envs)
                 self.ready[:] = False
@@ -418,10 +418,12 @@ class CudaExplorerProcess(Process):
                     self.sps += (len(times) - 1) * self.num_envs / (times[-1] - times[0])
 
                 if self.i_step < self.random_sampling_steps:
-                    self.i_step += 1
+                    print('Random sampling')
+                    self.i_step += self.num_envs
 
                     actions = [-1] * self.num_envs
                 else:
+                    print('Policy sampling')
                     state = self.env.process_state(self.state, device=self.device)
 
                     values = self.policy(*state).cpu()
