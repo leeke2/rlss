@@ -27,6 +27,8 @@ from rlss.utils import ArgsManager, state_action_dims
 from rlss.nets import TrTwinQNet, TrPolicyNet, BaseNet, BasePolicyNet
 from rlss.parallel.memory import ReplayMemory
 from rlss.parallel.explorer import Explorer
+import tqdm
+torch.set_num_threads(1)
 
 class RLDataset(IterableDataset): # pylint: disable=missing-class-docstring, too-few-public-methods
     def __init__(self, memory: ReplayMemory, sample_size: int = 200) -> None: # pylint: disable=missing-function-docstring
@@ -64,37 +66,11 @@ def create_pnet(*args, **kwargs) -> BasePolicyNet: # pylint: disable=missing-fun
 def create_qnet(*args, **kwargs) -> BaseNet: # pylint: disable=missing-function-docstring
     return TrTwinQNet(*args, **kwargs)
 
-class proc(Process):
-    def __init__(self, policy):
-        super().__init__()
-        self.policy = policy
-
-    def run(self):
-        self.policy.to('cuda:0')
-        while True:
-            print('ok')
-            time.sleep(5)
-
 if __name__ == "__main__":
     am = ArgsManager()
     kwargs = am.parse()
 
     create_env_fn = lambda: gym.make('StopSkip-v1')
-
-    kwargs = {
-        'embedding_size': 128,
-        'n_heads': 4,
-        'n_encoder_layers': 2,
-        'rollout_workers': 1,
-        'dataloader_workers': 1,
-        'buffer_size': 100,
-        'random_sampling_steps': 10,
-        'device': 'cuda',
-        'max_steps_per_episode': 200,
-        'batch_size': 32,
-        'prefetch_factor': 2,
-        'identifier': 'test'
-    }
 
     env = create_env_fn()
     env_dim = state_action_dims(env)
@@ -113,7 +89,8 @@ if __name__ == "__main__":
         create_env_fn,
         policy=rollout_policy,
         num_workers=kwargs['rollout_workers'],
-        **kwargs
+        random_sampling_steps=kwargs['random_sampling_steps'],
+        device=kwargs['device']
     )
 
     dataloader = train_dataloader(
@@ -124,7 +101,20 @@ if __name__ == "__main__":
         prefetch_factor=kwargs['prefetch_factor']
     )
 
-    proc(rollout_policy).start()
+    try:
+        min_data = kwargs['max_steps_per_episode'] * kwargs['batch_size']
+        while len(explorer.memory) < min_data:
+            print(f'Current replay memory size: {len(explorer.memory)}')
+            time.sleep(1)
+
+
+        agent.train(dataloader, explorer)
+        explorer.join()
+    except KeyboardInterrupt:
+            print('Exiting...')
+            explorer.join()
+
+    # proc(rollout_policy).start()
 
     # agent = DSACAgent(env, policy, rollout_policy, critic, dataloader, explorer, **kwargs)
     # agent.start()

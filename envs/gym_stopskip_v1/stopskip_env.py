@@ -104,6 +104,10 @@ class StopSkipEnv(gym.Env):
 
         self.reset()
 
+    @property
+    def current_state(self):
+        return self._obs()
+
     def copy(self):
         return StopSkipEnv(
             n_nodes=self.n_nodes,

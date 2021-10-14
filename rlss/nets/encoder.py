@@ -25,6 +25,8 @@ class MultiHeadAttentionLayer(Module):
         self.E = Linear(in_channels, out_channels * num_heads, bias=use_bias)
 
     def forward(self, x, e, edge_index):
+        from torch_scatter import scatter_softmax, scatter_sum, scatter
+        
         Q_h = self.Q(x).view(-1, self.num_heads, self.out_channels)
         K_h = self.K(x).view(-1, self.num_heads, self.out_channels)
         V_h = self.V(x).view(-1, self.num_heads, self.out_channels)
@@ -206,6 +208,7 @@ class GraphTransformerEncoder(Module):
             for _ in range(n_encoder_layers)
         ])
 
+        self.layer_norm = LayerNorm(embedding_size)
         self.mlp = MLPReadout(embedding_size, embedding_size)
 
         self._batch_size = None
@@ -231,6 +234,8 @@ class GraphTransformerEncoder(Module):
 
         size = int(self._batch.max().item() + 1)
         hg = scatter(h, self._batch, dim=0, dim_size=size, reduce='mean')
+        hg = self.layer_norm(hg)
+
         return self.mlp(hg)
         # n_nodes, node_features = nodes.shape
 

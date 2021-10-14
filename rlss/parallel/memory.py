@@ -46,7 +46,7 @@ class ReplayMemory: # pylint: disable=missing-class-docstring
         return lambda: create_shared_memory_array(shape=(self.buffer_size, 1), dtype=np.bool, shm=self.status_shm)
 
     def sample(self, batch_size: int): # pylint: disable=missing-function-docstring
-        idx = np.random.choice(np.where(self.ready)[0], size=batch_size)
+        idx = np.random.choice(range(self.buffer_len[0]), size=batch_size)
         return [buf[idx] for buf in self.buffer]
 
     def close(self): # pylint: disable=missing-function-docstring

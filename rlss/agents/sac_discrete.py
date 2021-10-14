@@ -187,7 +187,7 @@ class DSACAgent(BaseAgent):
         self._log(InfoType.Step.Alpha, self.alpha.item())
 
         self.rollout_pnet.load_state_dict(self.pnet.state_dict())
-        print(f'Updated: {torch.sum(list(self.pnet.state_dict().items())[0][1])}')
+        # print(f'Updated: {torch.sum(list(self.pnet.state_dict().items())[0][1])}')
 
     def start_procedures(self):
         self.pnet.to(self.device)
@@ -208,7 +208,6 @@ class DSACAgent(BaseAgent):
         self._register_callbacks()
 
         for i_ep in self._logger.ep_counter(n_episodes):
-            print(i_ep)
             self.state = self.process_state(self.env.reset())
 
             dataloader_iter = iter(dataloader)
@@ -221,7 +220,6 @@ class DSACAgent(BaseAgent):
             for idx_batch in progress_bar:
                 progress_bar.set_postfix(sps=f'{explorer.memory.sps:.1f}', refresh=False)
                 batch = next(dataloader_iter)
-
                 self._update(self.process_batch(batch))
 
                 done = self._gather_experience()
